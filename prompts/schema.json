@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InquiryTriage",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["category", "urgency", "summary", "property_mentioned", "draft_reply", "needs_human"],
+  "properties": {
+    "category": { "enum": ["buyer", "renter", "seller", "agent", "spam", "other"] },
+    "urgency": { "enum": ["high", "medium", "low"] },
+    "summary": { "type": "string" },
+    "property_mentioned": { "type": ["string", "null"] },
+    "draft_reply": { "type": "string" },
+    "needs_human": { "type": "boolean" }
+  }
+}

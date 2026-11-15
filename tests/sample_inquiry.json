@@ -1,0 +1,8 @@
+{
+  "name": "Test Buyer",
+  "email": "test.buyer@example.com",
+  "phone": "09170000000",
+  "property": "2BR Condo, Makati",
+  "message": "Hi, is the 2BR condo in Makati still available? I'd like a viewing this Saturday.",
+  "source": "test"
+}

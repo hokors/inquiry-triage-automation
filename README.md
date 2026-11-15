@@ -2,7 +2,7 @@
 
 An n8n workflow that takes real-estate inquiry form submissions, uses an LLM to **summarize, classify and draft a reply**, then routes each lead to the right place (Slack, email or a Google Sheet).
 
-> Status: in progress (Day 1 of 7). Built and tested with **sample data only**.
+> Status: in progress (Day 1 of 7 done). Built and tested with **sample data only**.
 
 ## How it works
 
@@ -38,10 +38,20 @@ The LLM returns strict JSON matching [`prompts/schema.json`](prompts/schema.json
 
 ## Setup
 
-1. Run n8n locally: `npx n8n` (or Docker), then open http://localhost:5678.
-2. Import the workflow from `workflows/`.
-3. Add your LLM API key and Google Sheets / Slack credentials in n8n (never commit them).
-4. Copy `.env.example` to `.env` and set `WEBHOOK_URL`.
+1. Install n8n on **Node 24** (n8n's native add-ons don't build on Node 26 yet):
+   `npm install -g n8n --allow-scripts=sqlite3,isolated-vm,msgpackr-extract,@parcel/watcher,ssh2,protobufjs`
+2. Start it with `scripts\start-n8n.cmd` (sets Node 24 and Asia/Manila time), then open http://localhost:5678.
+3. Import `workflows/triage.json` (Overview → Create workflow → ⋯ → Import from File).
+4. Google Sheets: create an OAuth client in Google Cloud (Sheets + Drive APIs enabled, yourself as a test user,
+   redirect URI `http://localhost:5678/rest/oauth2-credential/callback`) and connect it in the **Save to Sheet** node.
+   The target sheet needs an `Inquiries` tab with headers `received_at, name, email, phone, property, message, source`.
+5. Copy `.env.example` to `.env` and set `WEBHOOK_URL`. Never commit keys.
+
+Quick test (click **Execute workflow** in n8n first):
+
+```bash
+curl -X POST http://localhost:5678/webhook-test/inquiry -H "Content-Type: application/json" --data-binary @tests/sample_inquiry.json
+```
 
 ## Testing
 
@@ -64,7 +74,7 @@ The script prints accuracy per field and writes the failures to `docs/test_repor
 
 ## 7-day plan
 
-- [ ] Day 1 – n8n setup, webhook → Google Sheet
+- [x] Day 1 – n8n setup, webhook → Google Sheet
 - [ ] Day 2 – LLM node with strict JSON output
 - [ ] Day 3 – Routing (Slack / email / Sheet / drop)
 - [ ] Day 4 – Robustness: invalid JSON, empty input, prompt injection, retries, logging

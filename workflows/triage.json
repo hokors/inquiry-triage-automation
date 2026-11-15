@@ -1,0 +1,78 @@
+{
+  "name": "Inquiry Triage",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "inquiry",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1f0c0de-0001-4000-8000-000000000001",
+      "name": "Inquiry Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "5b6f3c1e-2d4a-4e8b-9c7d-1a2b3c4d5e6f"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "f1", "name": "received_at", "value": "={{ $now.toISO() }}", "type": "string" },
+            { "id": "f2", "name": "name", "value": "={{ ($json.body.name ?? '').toString().trim() }}", "type": "string" },
+            { "id": "f3", "name": "email", "value": "={{ ($json.body.email ?? '').toString().trim() }}", "type": "string" },
+            { "id": "f4", "name": "phone", "value": "={{ ($json.body.phone ?? '').toString().trim() }}", "type": "string" },
+            { "id": "f5", "name": "property", "value": "={{ ($json.body.property ?? '').toString().trim() }}", "type": "string" },
+            { "id": "f6", "name": "message", "value": "={{ ($json.body.message ?? '').toString().trim() }}", "type": "string" },
+            { "id": "f7", "name": "source", "value": "={{ $json.body.source ?? 'test' }}", "type": "string" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0002-4000-8000-000000000002",
+      "name": "Clean Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "https://docs.google.com/spreadsheets/d/1lF7IFxnXTz6ABypaBHfcWUZZUrpNimazLGtt6FofWvg/edit", "mode": "url" },
+        "sheetName": { "__rl": true, "value": "Inquiries", "mode": "name" },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0003-4000-8000-000000000003",
+      "name": "Save to Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true, \"received_at\": $('Clean Fields').item.json.received_at } }}",
+        "options": {}
+      },
+      "id": "a1f0c0de-0004-4000-8000-000000000004",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [660, 0]
+    }
+  ],
+  "connections": {
+    "Inquiry Webhook": { "main": [[{ "node": "Clean Fields", "type": "main", "index": 0 }]] },
+    "Clean Fields": { "main": [[{ "node": "Save to Sheet", "type": "main", "index": 0 }]] },
+    "Save to Sheet": { "main": [[{ "node": "Respond", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "active": false
+}

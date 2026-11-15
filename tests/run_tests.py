@@ -55,6 +55,7 @@ def norm(value):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--label", default="run", help="name for this run, e.g. baseline or prompt-v2")
+    p.add_argument("--cases", default=str(CASES), help="CSV of cases (default: tests/test_cases.csv)")
     p.add_argument("--delay", type=float, default=4.0, help="seconds between requests (free-tier rate limits)")
     p.add_argument("--timeout", type=float, default=90.0)
     args = p.parse_args()
@@ -64,7 +65,8 @@ def main():
     if not url:
         sys.exit("Set WEBHOOK_URL in .env (see .env.example)")
 
-    cases = list(csv.DictReader(CASES.open(encoding="utf-8")))
+    cases_path = Path(args.cases)
+    cases = list(csv.DictReader(cases_path.open(encoding="utf-8")))
     rows = []
     for i, case in enumerate(cases):
         if i:
@@ -84,7 +86,7 @@ def main():
 
         misses = [f"{f}: expected {row[f'expected_{f}']}, got {row[f'actual_{f}'] or '-'}" for f in FIELDS if not row[f"{f}_ok"]]
         status = "PASS" if row["all_ok"] else "FAIL"
-        print(f"[{status}] #{case['id']:>2} {secs:5.1f}s  {case['message'][:45]!r:50} {'; '.join(misses)}")
+        print(f"[{status}] #{case['id']:>3}{secs:5.1f}s  {case['message'][:45]!r:50} {'; '.join(misses)}")
 
     n = len(rows)
     acc = {f: sum(r[f"{f}_ok"] for r in rows) for f in FIELDS}
@@ -105,7 +107,7 @@ def main():
     lines = [
         f"# Test run: {args.label} ({stamp.replace('_', ' ')})",
         "",
-        f"{n} cases. Models: {', '.join(f'{m} ({c})' for m, c in models.items())}.",
+        f"{n} cases from `{cases_path.name}`. Models:{', '.join(f'{m} ({c})' for m, c in models.items())}.",
         "",
         "| Field | Correct | Accuracy |",
         "|---|---|---|",

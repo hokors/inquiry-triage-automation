@@ -77,13 +77,16 @@ sheet and the email. Each run saves every case and a summary to [`docs/test_runs
 |---|---|---|---|---|---|---|---|
 | baseline | 2026-11-15 | Gemini Flash-Lite | 90% | 93% | 37% | 30% | 1.4 s |
 | prompt-v2 | 2026-11-15 | Gemini Flash-Lite | 100% | 97% | 100% | 97% | 1.6 s |
+| **held-out** (20 unseen cases, run once) | 2026-11-15 | Gemini Flash-Lite | **100%** | **95%** | **100%** | **95%** | 1.4 s |
 
 Problems found and how they were fixed: [`docs/failure_log.md`](docs/failure_log.md).
 
 ## Limits
 
 - Tested only on sample inquiries, not live client data.
-- Prompt v2 was tuned using the same 30 cases it is scored on, so 97% is optimistic. A fresh held-out set is needed for an honest number.
+- Prompt v2 was tuned on the 30 cases in `test_cases.csv`, so its 97% there is optimistic. The honest number is the
+  held-out run: 20 new cases in [`tests/holdout_cases.csv`](tests/holdout_cases.csv), labeled before running and scored once without changes (95%).
+- 50 test cases total is small; results can shift by a few points with more data.
 - The LLM can misclassify vague or mixed messages; anything uncertain goes to human review.
 - Draft replies are suggestions and should be checked by a person before sending.
 

@@ -76,12 +76,14 @@ sheet and the email. Each run saves every case and a summary to [`docs/test_runs
 | Run | Date | Model | Category | Urgency | Needs-human | All 3 | Median latency |
 |---|---|---|---|---|---|---|---|
 | baseline | 2026-11-15 | Gemini Flash-Lite | 90% | 93% | 37% | 30% | 1.4 s |
+| prompt-v2 | 2026-11-15 | Gemini Flash-Lite | 100% | 97% | 100% | 97% | 1.6 s |
 
 Problems found and how they were fixed: [`docs/failure_log.md`](docs/failure_log.md).
 
 ## Limits
 
 - Tested only on sample inquiries, not live client data.
+- Prompt v2 was tuned using the same 30 cases it is scored on, so 97% is optimistic. A fresh held-out set is needed for an honest number.
 - The LLM can misclassify vague or mixed messages; anything uncertain goes to human review.
 - Draft replies are suggestions and should be checked by a person before sending.
 
@@ -91,6 +93,6 @@ Problems found and how they were fixed: [`docs/failure_log.md`](docs/failure_log
 - [x] Day 2 – LLM node with strict JSON output
 - [x] Day 3 – Routing (Gmail alert / Sheet / drop)
 - [ ] Day 4 – Robustness: invalid JSON, empty input, prompt injection, retries, logging
-- [x] Day 5 – Test set + runner + accuracy report (baseline done; prompt fixes next)
+- [x] Day 5 – Test set + runner + accuracy report (baseline 30% → prompt v2 97% all-fields)
 - [ ] Day 6 – Export workflow, finish README
 - [ ] Day 7 – Demo video, portfolio, LinkedIn post

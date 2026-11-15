@@ -2,7 +2,7 @@
 
 An n8n workflow that takes real-estate inquiry form submissions, uses an LLM to **summarize, classify and draft a reply**, then routes each lead to the right place (Slack, email or a Google Sheet).
 
-> Status: in progress (Day 3 of 7 done). Classification runs on Gemini (`gemini-flash-latest`, falling back to `gemini-flash-lite-latest` when it's overloaded) with a JSON response schema. Built and tested with **sample data only**.
+> Status: in progress (Day 3 of 7 done). Classification runs on Gemini (main model `gemini-flash-lite-latest` (~1–2 s), falling back to `gemini-flash-latest` if it fails) with a JSON response schema. Built and tested with **sample data only**.
 
 ## How it works
 

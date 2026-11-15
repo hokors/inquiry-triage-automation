@@ -19,9 +19,10 @@ const args = Object.fromEntries(
   process.argv.slice(2).reduce((pairs, a, i, all) => (a.startsWith('--') ? [...pairs, [a.slice(2), all[i + 1]]] : pairs), []),
 );
 
-const GEMINI_MODEL = 'gemini-flash-latest';
+// Main model: Flash-Lite answers in ~1-2s and is less often overloaded.
+const GEMINI_MODEL = 'gemini-flash-lite-latest';
 // Used only when the main model fails (e.g. 503 "high demand" or a timeout).
-const GEMINI_FALLBACK_MODEL = 'gemini-flash-lite-latest';
+const GEMINI_FALLBACK_MODEL = 'gemini-flash-latest';
 
 // HTTP Request node that calls Gemini's generateContent with the body from Build Request.
 const geminiNode = ({ name, model, id, position, timeout, maxTries, onError }) => ({
@@ -135,23 +136,23 @@ const nodes = [
     typeVersion: 2,
     position: [440, 0],
   },
-  // Main model: 2 tries x 20s. On failure, the item goes out the error branch to the fallback.
+  // Main model: 2 tries x 15s. On failure, the item goes out the error branch to the fallback.
   geminiNode({
     name: 'Classify with Gemini',
     model: GEMINI_MODEL,
     id: 'a1f0c0de-0006-4000-8000-000000000006',
     position: [660, 0],
-    timeout: 20000,
+    timeout: 15000,
     maxTries: 2,
     onError: 'continueErrorOutput',
   }),
-  // Fallback model: 1 try x 25s. If this fails too, Parse Triage marks the inquiry for human review.
+  // Fallback model: 1 try x 30s. If this fails too, Parse Triage marks the inquiry for human review.
   geminiNode({
     name: 'Classify with Fallback Model',
     model: GEMINI_FALLBACK_MODEL,
     id: 'a1f0c0de-0012-4000-8000-000000000012',
     position: [880, 180],
-    timeout: 25000,
+    timeout: 30000,
     maxTries: 1,
     onError: 'continueRegularOutput',
   }),

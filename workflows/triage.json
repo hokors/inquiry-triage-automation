@@ -94,14 +94,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('Build Request').item.json.gemini_request) }}",
         "options": {
-          "timeout": 20000
+          "timeout": 15000
         }
       },
       "id": "a1f0c0de-0006-4000-8000-000000000006",
@@ -120,14 +120,14 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify($('Build Request').item.json.gemini_request) }}",
         "options": {
-          "timeout": 25000
+          "timeout": 30000
         }
       },
       "id": "a1f0c0de-0012-4000-8000-000000000012",

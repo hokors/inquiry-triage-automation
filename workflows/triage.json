@@ -183,14 +183,14 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1760,
+        1980,
         100
       ]
     },
     {
       "parameters": {
         "respondWith": "json",
-        "responseBody": "={{ { ok: true, received_at: $('Parse Triage').item.json.received_at, category: $('Parse Triage').item.json.category, urgency: $('Parse Triage').item.json.urgency, summary: $('Parse Triage').item.json.summary, property_mentioned: $('Parse Triage').item.json.property_mentioned, draft_reply: $('Parse Triage').item.json.draft_reply, needs_human: $('Parse Triage').item.json.needs_human, triage_error: $('Parse Triage').item.json.triage_error } }}",
+        "responseBody": "={{ { ok: true, received_at: $('Parse Triage').item.json.received_at, category: $('Parse Triage').item.json.category, urgency: $('Parse Triage').item.json.urgency, summary: $('Parse Triage').item.json.summary, property_mentioned: $('Parse Triage').item.json.property_mentioned, draft_reply: $('Parse Triage').item.json.draft_reply, needs_human: $('Parse Triage').item.json.needs_human, triage_error: $('Parse Triage').item.json.triage_error, model: $('Parse Triage').item.json.model } }}",
         "options": {}
       },
       "id": "a1f0c0de-0004-4000-8000-000000000004",
@@ -200,6 +200,50 @@
       "position": [
         1320,
         0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a1f0c0de-0013-4000-8000-000000000013-c",
+              "leftValue": "={{ $json.source === 'test_suite' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0013-4000-8000-000000000013",
+      "name": "Test Run?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a1f0c0de-0014-4000-8000-000000000014",
+      "name": "Skip (Test Run)",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        -300
       ]
     },
     {
@@ -231,7 +275,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1540,
+        1760,
         0
       ]
     },
@@ -242,7 +286,7 @@
       "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
-        1760,
+        1980,
         -140
       ]
     },
@@ -275,7 +319,7 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        1980,
+        2200,
         100
       ]
     },
@@ -294,7 +338,7 @@
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
       "position": [
-        2200,
+        2420,
         0
       ],
       "webhookId": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
@@ -376,6 +420,24 @@
     },
     "Respond": {
       "main": [
+        [
+          {
+            "node": "Test Run?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Run?": {
+      "main": [
+        [
+          {
+            "node": "Skip (Test Run)",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Is Spam?",

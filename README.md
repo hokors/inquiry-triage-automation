@@ -63,16 +63,21 @@ curl -X POST http://localhost:5678/webhook-test/inquiry -H "Content-Type: applic
 
 ## Testing
 
+30 labeled inquiries in [`tests/test_cases.csv`](tests/test_cases.csv) (English, Filipino, Taglish, typos, vague,
+spam, empty, prompt injection), labeled by the rules in [`tests/labeling_guide.md`](tests/labeling_guide.md).
+
 ```bash
-pip install requests
-python tests/run_tests.py
+python tests/run_tests.py --label baseline
 ```
 
-The script prints accuracy per field and writes the failures to `docs/test_report.csv`.
+Test cases are sent with `source: "test_suite"`, so the workflow classifies and answers them but skips the
+sheet and the email. Each run saves every case and a summary to [`docs/test_runs/`](docs/test_runs/).
 
-| Run | Date | Category acc. | Urgency acc. | Needs-human acc. | Notes |
-|---|---|---|---|---|---|
-| — | — | — | — | — | not run yet |
+| Run | Date | Model | Category | Urgency | Needs-human | All 3 | Median latency |
+|---|---|---|---|---|---|---|---|
+| baseline | 2026-11-15 | Gemini Flash-Lite | 90% | 93% | 37% | 30% | 1.4 s |
+
+Problems found and how they were fixed: [`docs/failure_log.md`](docs/failure_log.md).
 
 ## Limits
 
@@ -86,6 +91,6 @@ The script prints accuracy per field and writes the failures to `docs/test_repor
 - [x] Day 2 – LLM node with strict JSON output
 - [x] Day 3 – Routing (Gmail alert / Sheet / drop)
 - [ ] Day 4 – Robustness: invalid JSON, empty input, prompt injection, retries, logging
-- [ ] Day 5 – Test set + runner + accuracy report
+- [x] Day 5 – Test set + runner + accuracy report (baseline done; prompt fixes next)
 - [ ] Day 6 – Export workflow, finish README
 - [ ] Day 7 – Demo video, portfolio, LinkedIn post

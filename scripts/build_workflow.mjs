@@ -182,7 +182,7 @@ const nodes = [
     parameters: {
       respondWith: 'json',
       responseBody:
-        "={{ { ok: true, received_at: $('Parse Triage').item.json.received_at, category: $('Parse Triage').item.json.category, urgency: $('Parse Triage').item.json.urgency, summary: $('Parse Triage').item.json.summary, property_mentioned: $('Parse Triage').item.json.property_mentioned, draft_reply: $('Parse Triage').item.json.draft_reply, needs_human: $('Parse Triage').item.json.needs_human, triage_error: $('Parse Triage').item.json.triage_error } }}",
+        "={{ { ok: true, received_at: $('Parse Triage').item.json.received_at, category: $('Parse Triage').item.json.category, urgency: $('Parse Triage').item.json.urgency, summary: $('Parse Triage').item.json.summary, property_mentioned: $('Parse Triage').item.json.property_mentioned, draft_reply: $('Parse Triage').item.json.draft_reply, needs_human: $('Parse Triage').item.json.needs_human, triage_error: $('Parse Triage').item.json.triage_error, model: $('Parse Triage').item.json.model } }}",
       options: {},
     },
     id: 'a1f0c0de-0004-4000-8000-000000000004',
@@ -191,19 +191,29 @@ const nodes = [
     typeVersion: 1.1,
     position: [1320, 0],
   },
-  ifNode('Is Spam?', '$json.category === \'spam\'', [1540, 0], 'a1f0c0de-0008-4000-8000-000000000008'),
+  // Accuracy-test runs (source = test_suite) are classified and answered, but never logged or emailed.
+  ifNode('Test Run?', "$json.source === 'test_suite'", [1540, 0], 'a1f0c0de-0013-4000-8000-000000000013'),
+  {
+    parameters: {},
+    id: 'a1f0c0de-0014-4000-8000-000000000014',
+    name: 'Skip (Test Run)',
+    type: 'n8n-nodes-base.noOp',
+    typeVersion: 1,
+    position: [1760, -300],
+  },
+  ifNode('Is Spam?', '$json.category === \'spam\'', [1760, 0], 'a1f0c0de-0008-4000-8000-000000000008'),
   {
     parameters: {},
     id: 'a1f0c0de-0009-4000-8000-000000000009',
     name: 'Drop Spam',
     type: 'n8n-nodes-base.noOp',
     typeVersion: 1,
-    position: [1760, -140],
+    position: [1980, -140],
   },
   ifNode(
     'Hot Lead?',
     "$('Parse Triage').item.json.urgency === 'high' && ['buyer', 'renter', 'seller', 'agent'].includes($('Parse Triage').item.json.category) && !$('Parse Triage').item.json.triage_error",
-    [1980, 100],
+    [2200, 100],
     'a1f0c0de-0010-4000-8000-000000000010',
   ),
   {
@@ -218,13 +228,13 @@ const nodes = [
     name: 'Email Hot Lead',
     type: 'n8n-nodes-base.gmail',
     typeVersion: 2.1,
-    position: [2200, 0],
+    position: [2420, 0],
     webhookId: '7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
   },
 ];
 
 // Save to Sheet sits on the "not spam" branch.
-nodes.find((n) => n.name === 'Save to Sheet').position = [1760, 100];
+nodes.find((n) => n.name === 'Save to Sheet').position = [1980, 100];
 
 const link = (to, index = 0) => ({ node: to, type: 'main', index });
 const connections = {
@@ -236,7 +246,8 @@ const connections = {
   'Classify with Fallback Model': { main: [[link('Parse Triage')]] },
   'Parse Triage': { main: [[link('Respond')]] },
   // Reply to the form right away, then keep routing in the background.
-  Respond: { main: [[link('Is Spam?')]] },
+  Respond: { main: [[link('Test Run?')]] },
+  'Test Run?': { main: [[link('Skip (Test Run)')], [link('Is Spam?')]] },
   'Is Spam?': { main: [[link('Drop Spam')], [link('Save to Sheet')]] },
   'Save to Sheet': { main: [[link('Hot Lead?')]] },
   'Hot Lead?': { main: [[link('Email Hot Lead')], []] },

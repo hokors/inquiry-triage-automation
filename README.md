@@ -2,17 +2,23 @@
 
 An n8n workflow that takes real-estate inquiry form submissions, uses an LLM to **summarize, classify and draft a reply**, then routes each lead to the right place (Slack, email or a Google Sheet).
 
-> Status: in progress (Day 2 of 7 done). Classification runs on Gemini (`gemini-flash-latest`) with a JSON response schema. Built and tested with **sample data only**.
+> Status: in progress (Day 3 of 7 done). Classification runs on Gemini (`gemini-flash-latest`, falling back to `gemini-flash-lite-latest` when it's overloaded) with a JSON response schema. Built and tested with **sample data only**.
 
 ## How it works
 
 ```
-Inquiry form ──► n8n Webhook ──► LLM (Claude / Gemini) ──► Parse JSON ──► Router
-                                                               │             ├─ hot lead (high urgency) ──► Slack / email
-                                                               │             ├─ spam ──► dropped (logged)
-                                                               │             └─ everything else ──► Google Sheet
-                                                               └─ parse fail / needs_human ──► "Needs human review"
+Inquiry form ──► Webhook ──► Clean Fields ──► Build Request ──► Gemini ──────────────┐
+                                                                  └─ fails ─► Fallback model ─┤
+                                                                                              ▼
+                                   Respond to form ◄── Parse & validate JSON (bad output → needs_human)
+                                          │
+                                       Is spam? ── yes ──► dropped
+                                          │ no
+                                    Save to Google Sheet ──► Hot lead? ── yes ──► Gmail alert with draft reply
 ```
+
+The form gets its response as soon as the inquiry is classified; logging and alerts run after.
+The alert recipient (`sendTo` in the Email Hot Lead node) is a placeholder in the repo; set it in n8n.
 
 The LLM returns strict JSON matching [`prompts/schema.json`](prompts/schema.json):
 
@@ -78,7 +84,7 @@ The script prints accuracy per field and writes the failures to `docs/test_repor
 
 - [x] Day 1 – n8n setup, webhook → Google Sheet
 - [x] Day 2 – LLM node with strict JSON output
-- [ ] Day 3 – Routing (Slack / email / Sheet / drop)
+- [x] Day 3 – Routing (Gmail alert / Sheet / drop)
 - [ ] Day 4 – Robustness: invalid JSON, empty input, prompt injection, retries, logging
 - [ ] Day 5 – Test set + runner + accuracy report
 - [ ] Day 6 – Export workflow, finish README

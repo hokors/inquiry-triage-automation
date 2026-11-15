@@ -99,9 +99,9 @@
         "nodeCredentialType": "googlePalmApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ JSON.stringify($json.gemini_request) }}",
+        "jsonBody": "={{ JSON.stringify($('Build Request').item.json.gemini_request) }}",
         "options": {
-          "timeout": 30000
+          "timeout": 20000
         }
       },
       "id": "a1f0c0de-0006-4000-8000-000000000006",
@@ -113,8 +113,34 @@
         0
       ],
       "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 2000,
+      "maxTries": 2,
+      "waitBetweenTries": 1000,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googlePalmApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Build Request').item.json.gemini_request) }}",
+        "options": {
+          "timeout": 25000
+        }
+      },
+      "id": "a1f0c0de-0012-4000-8000-000000000012",
+      "name": "Classify with Fallback Model",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        880,
+        180
+      ],
+      "retryOnFail": false,
+      "maxTries": 1,
+      "waitBetweenTries": 1000,
       "onError": "continueRegularOutput"
     },
     {
@@ -127,7 +153,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        880,
+        1100,
         0
       ]
     },
@@ -157,8 +183,8 @@
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1100,
-        0
+        1760,
+        100
       ]
     },
     {
@@ -175,6 +201,103 @@
         1320,
         0
       ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a1f0c0de-0008-4000-8000-000000000008-c",
+              "leftValue": "={{ $json.category === 'spam' }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0008-4000-8000-000000000008",
+      "name": "Is Spam?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "a1f0c0de-0009-4000-8000-000000000009",
+      "name": "Drop Spam",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        -140
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "a1f0c0de-0010-4000-8000-000000000010-c",
+              "leftValue": "={{ $('Parse Triage').item.json.urgency === 'high' && ['buyer', 'renter', 'seller', 'agent'].includes($('Parse Triage').item.json.category) && !$('Parse Triage').item.json.triage_error }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1f0c0de-0010-4000-8000-000000000010",
+      "name": "Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "you@example.com",
+        "subject": "={{ '🔥 Hot lead (' + $('Parse Triage').item.json.category + '): ' + ($('Parse Triage').item.json.property_mentioned || $('Parse Triage').item.json.name || 'new inquiry') }}",
+        "emailType": "html",
+        "message": "={{ (() => {\n  const t = $('Parse Triage').item.json;\n  const esc = (s) => String(s ?? '').replace(/[&<>\"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' })[c]);\n  const row = (k, v) => '<tr><td style=\"padding:4px 12px 4px 0;color:#666\"><b>' + k + '</b></td><td style=\"padding:4px 0\">' + esc(v) + '</td></tr>';\n  return '<p><b>' + esc(t.summary) + '</b></p>'\n    + '<table>' + row('Name', t.name) + row('Email', t.email) + row('Phone', t.phone) + row('Property', t.property_mentioned || t.property)\n    + row('Category', t.category) + row('Urgency', t.urgency) + row('Received', t.received_at) + '</table>'\n    + '<p><b>Message</b><br>' + esc(t.message).replace(/\\n/g, '<br>') + '</p>'\n    + '<p><b>Suggested reply</b> (check before sending)<br>' + esc(t.draft_reply) + '</p>'\n    + '<p><a href=\"https://docs.google.com/spreadsheets/d/1lF7IFxnXTz6ABypaBHfcWUZZUrpNimazLGtt6FofWvg/edit\">Open inquiry log</a></p>';\n})() }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a1f0c0de-0011-4000-8000-000000000011",
+      "name": "Email Hot Lead",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        2200,
+        0
+      ],
+      "webhookId": "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f"
     }
   ],
   "connections": {
@@ -219,11 +342,58 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Classify with Fallback Model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify with Fallback Model": {
+      "main": [
+        [
+          {
+            "node": "Parse Triage",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Parse Triage": {
       "main": [
+        [
+          {
+            "node": "Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond": {
+      "main": [
+        [
+          {
+            "node": "Is Spam?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Spam?": {
+      "main": [
+        [
+          {
+            "node": "Drop Spam",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "Save to Sheet",
@@ -237,11 +407,23 @@
       "main": [
         [
           {
-            "node": "Respond",
+            "node": "Hot Lead?",
             "type": "main",
             "index": 0
           }
         ]
+      ]
+    },
+    "Hot Lead?": {
+      "main": [
+        [
+          {
+            "node": "Email Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     }
   },

@@ -2,7 +2,7 @@
 // logic stays readable in the repo instead of living only inside n8n.
 //
 //   node scripts/build_workflow.mjs
-//   node scripts/build_workflow.mjs --out <file> --id <workflowId> --sheets-cred <id> [--gemini-cred <id>]
+//   node scripts/build_workflow.mjs --out <file> --id <workflowId> --sheets-cred <id> [--gemini-cred <id>] [--gmail-cred <id>] [--alert-to <email>]
 //
 // The second form writes a copy for `n8n import:workflow` that overwrites the
 // existing workflow and keeps its credentials attached. Credential IDs are
@@ -20,6 +20,31 @@ const args = Object.fromEntries(
 );
 
 const GEMINI_MODEL = 'gemini-flash-latest';
+// Used only when the main model fails (e.g. 503 "high demand" or a timeout).
+const GEMINI_FALLBACK_MODEL = 'gemini-flash-lite-latest';
+
+// HTTP Request node that calls Gemini's generateContent with the body from Build Request.
+const geminiNode = ({ name, model, id, position, timeout, maxTries, onError }) => ({
+  parameters: {
+    method: 'POST',
+    url: `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+    authentication: 'predefinedCredentialType',
+    nodeCredentialType: 'googlePalmApi',
+    sendBody: true,
+    specifyBody: 'json',
+    jsonBody: "={{ JSON.stringify($('Build Request').item.json.gemini_request) }}",
+    options: { timeout },
+  },
+  id,
+  name,
+  type: 'n8n-nodes-base.httpRequest',
+  typeVersion: 4.2,
+  position,
+  retryOnFail: maxTries > 1,
+  maxTries,
+  waitBetweenTries: 1000,
+  onError,
+});
 const SHEET_URL = 'https://docs.google.com/spreadsheets/d/1lF7IFxnXTz6ABypaBHfcWUZZUrpNimazLGtt6FofWvg/edit';
 
 const systemPrompt = read('prompts/system_prompt.md').trim();
@@ -28,6 +53,45 @@ const PLACEHOLDER = 'const SYSTEM_PROMPT = __SYSTEM_PROMPT__;';
 if (!buildRequestSrc.includes(PLACEHOLDER)) throw new Error(`build_request.js is missing: ${PLACEHOLDER}`);
 const buildRequest = buildRequestSrc.replace(PLACEHOLDER, () => `const SYSTEM_PROMPT = ${JSON.stringify(systemPrompt)};`);
 const parseTriage = read('workflows/code/parse_triage.js');
+
+// IF node whose condition is a single JavaScript expression that must be true.
+const ifNode = (name, expr, position, id) => ({
+  parameters: {
+    conditions: {
+      options: { caseSensitive: true, leftValue: '', typeValidation: 'loose' },
+      conditions: [
+        {
+          id: `${id}-c`,
+          leftValue: `={{ ${expr} }}`,
+          rightValue: '',
+          operator: { type: 'boolean', operation: 'true', singleValue: true },
+        },
+      ],
+      combinator: 'and',
+    },
+    options: {},
+  },
+  id,
+  name,
+  type: 'n8n-nodes-base.if',
+  typeVersion: 2,
+  position,
+});
+
+// Hot-lead email. Values come from Parse Triage and are HTML-escaped.
+const T = "$('Parse Triage').item.json";
+const HOT_LEAD_SUBJECT = `'🔥 Hot lead (' + ${T}.category + '): ' + (${T}.property_mentioned || ${T}.name || 'new inquiry')`;
+const HOT_LEAD_BODY = `(() => {
+  const t = ${T};
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const row = (k, v) => '<tr><td style="padding:4px 12px 4px 0;color:#666"><b>' + k + '</b></td><td style="padding:4px 0">' + esc(v) + '</td></tr>';
+  return '<p><b>' + esc(t.summary) + '</b></p>'
+    + '<table>' + row('Name', t.name) + row('Email', t.email) + row('Phone', t.phone) + row('Property', t.property_mentioned || t.property)
+    + row('Category', t.category) + row('Urgency', t.urgency) + row('Received', t.received_at) + '</table>'
+    + '<p><b>Message</b><br>' + esc(t.message).replace(/\\n/g, '<br>') + '</p>'
+    + '<p><b>Suggested reply</b> (check before sending)<br>' + esc(t.draft_reply) + '</p>'
+    + '<p><a href="${SHEET_URL}">Open inquiry log</a></p>';
+})()`;
 
 const field = (id, name, expr) => ({ id, name, value: `={{ ${expr} }}`, type: 'string' });
 const clean = (key) => `($json.body.${key} ?? '').toString().trim()`;
@@ -71,34 +135,33 @@ const nodes = [
     typeVersion: 2,
     position: [440, 0],
   },
-  {
-    parameters: {
-      method: 'POST',
-      url: `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      authentication: 'predefinedCredentialType',
-      nodeCredentialType: 'googlePalmApi',
-      sendBody: true,
-      specifyBody: 'json',
-      jsonBody: '={{ JSON.stringify($json.gemini_request) }}',
-      options: { timeout: 30000 },
-    },
-    id: 'a1f0c0de-0006-4000-8000-000000000006',
+  // Main model: 2 tries x 20s. On failure, the item goes out the error branch to the fallback.
+  geminiNode({
     name: 'Classify with Gemini',
-    type: 'n8n-nodes-base.httpRequest',
-    typeVersion: 4.2,
+    model: GEMINI_MODEL,
+    id: 'a1f0c0de-0006-4000-8000-000000000006',
     position: [660, 0],
-    retryOnFail: true,
-    maxTries: 3,
-    waitBetweenTries: 2000,
+    timeout: 20000,
+    maxTries: 2,
+    onError: 'continueErrorOutput',
+  }),
+  // Fallback model: 1 try x 25s. If this fails too, Parse Triage marks the inquiry for human review.
+  geminiNode({
+    name: 'Classify with Fallback Model',
+    model: GEMINI_FALLBACK_MODEL,
+    id: 'a1f0c0de-0012-4000-8000-000000000012',
+    position: [880, 180],
+    timeout: 25000,
+    maxTries: 1,
     onError: 'continueRegularOutput',
-  },
+  }),
   {
     parameters: { mode: 'runOnceForEachItem', jsCode: parseTriage },
     id: 'a1f0c0de-0007-4000-8000-000000000007',
     name: 'Parse Triage',
     type: 'n8n-nodes-base.code',
     typeVersion: 2,
-    position: [880, 0],
+    position: [1100, 0],
   },
   {
     parameters: {
@@ -127,22 +190,73 @@ const nodes = [
     typeVersion: 1.1,
     position: [1320, 0],
   },
+  ifNode('Is Spam?', '$json.category === \'spam\'', [1540, 0], 'a1f0c0de-0008-4000-8000-000000000008'),
+  {
+    parameters: {},
+    id: 'a1f0c0de-0009-4000-8000-000000000009',
+    name: 'Drop Spam',
+    type: 'n8n-nodes-base.noOp',
+    typeVersion: 1,
+    position: [1760, -140],
+  },
+  ifNode(
+    'Hot Lead?',
+    "$('Parse Triage').item.json.urgency === 'high' && ['buyer', 'renter', 'seller', 'agent'].includes($('Parse Triage').item.json.category) && !$('Parse Triage').item.json.triage_error",
+    [1980, 100],
+    'a1f0c0de-0010-4000-8000-000000000010',
+  ),
+  {
+    parameters: {
+      sendTo: args['alert-to'] ?? 'you@example.com',
+      subject: `={{ ${HOT_LEAD_SUBJECT} }}`,
+      emailType: 'html',
+      message: `={{ ${HOT_LEAD_BODY} }}`,
+      options: { appendAttribution: false },
+    },
+    id: 'a1f0c0de-0011-4000-8000-000000000011',
+    name: 'Email Hot Lead',
+    type: 'n8n-nodes-base.gmail',
+    typeVersion: 2.1,
+    position: [2200, 0],
+    webhookId: '7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f',
+  },
 ];
 
-const chain = ['Inquiry Webhook', 'Clean Fields', 'Build Request', 'Classify with Gemini', 'Parse Triage', 'Save to Sheet', 'Respond'];
-const connections = Object.fromEntries(
-  chain.slice(0, -1).map((from, i) => [from, { main: [[{ node: chain[i + 1], type: 'main', index: 0 }]] }]),
-);
+// Save to Sheet sits on the "not spam" branch.
+nodes.find((n) => n.name === 'Save to Sheet').position = [1760, 100];
+
+const link = (to, index = 0) => ({ node: to, type: 'main', index });
+const connections = {
+  'Inquiry Webhook': { main: [[link('Clean Fields')]] },
+  'Clean Fields': { main: [[link('Build Request')]] },
+  'Build Request': { main: [[link('Classify with Gemini')]] },
+  // Output 0 = success, output 1 = error -> try the fallback model.
+  'Classify with Gemini': { main: [[link('Parse Triage')], [link('Classify with Fallback Model')]] },
+  'Classify with Fallback Model': { main: [[link('Parse Triage')]] },
+  'Parse Triage': { main: [[link('Respond')]] },
+  // Reply to the form right away, then keep routing in the background.
+  Respond: { main: [[link('Is Spam?')]] },
+  'Is Spam?': { main: [[link('Drop Spam')], [link('Save to Sheet')]] },
+  'Save to Sheet': { main: [[link('Hot Lead?')]] },
+  'Hot Lead?': { main: [[link('Email Hot Lead')], []] },
+};
 
 if (args['sheets-cred']) {
   nodes.find((n) => n.name === 'Save to Sheet').credentials = {
     googleSheetsOAuth2Api: { id: args['sheets-cred'], name: 'Google Sheets account' },
   };
 }
-if (args['gemini-cred']) {
-  nodes.find((n) => n.name === 'Classify with Gemini').credentials = {
-    googlePalmApi: { id: args['gemini-cred'], name: 'Google Gemini(PaLM) Api account' },
+if (args['gmail-cred']) {
+  nodes.find((n) => n.name === 'Email Hot Lead').credentials = {
+    gmailOAuth2: { id: args['gmail-cred'], name: 'Gmail account' },
   };
+}
+if (args['gemini-cred']) {
+  for (const name of ['Classify with Gemini', 'Classify with Fallback Model']) {
+    nodes.find((n) => n.name === name).credentials = {
+      googlePalmApi: { id: args['gemini-cred'], name: 'Google Gemini(PaLM) Api account' },
+    };
+  }
 }
 
 const workflow = {

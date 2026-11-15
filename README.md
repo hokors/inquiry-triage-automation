@@ -2,7 +2,7 @@
 
 An n8n workflow that takes real-estate inquiry form submissions, uses an LLM to **summarize, classify and draft a reply**, then routes each lead to the right place (Slack, email or a Google Sheet).
 
-> Status: in progress (Day 1 of 7 done). Built and tested with **sample data only**.
+> Status: in progress (Day 2 of 7 done). Classification runs on Gemini (`gemini-flash-latest`) with a JSON response schema. Built and tested with **sample data only**.
 
 ## How it works
 
@@ -31,7 +31,9 @@ The LLM returns strict JSON matching [`prompts/schema.json`](prompts/schema.json
 |---|---|
 | `prompts/system_prompt.md` | System prompt for the LLM node |
 | `prompts/schema.json` | JSON Schema for the LLM output |
-| `workflows/` | Exported n8n workflow JSON |
+| `workflows/triage.json` | The n8n workflow (generated, import this) |
+| `workflows/code/` | JavaScript for the Build Request and Parse Triage Code nodes |
+| `scripts/build_workflow.mjs` | Rebuilds `triage.json` from the prompt and code files: `node scripts/build_workflow.mjs` |
 | `tests/test_cases.csv` | Labelled sample inquiries |
 | `tests/run_tests.py` | Sends every test case to the webhook and scores the results |
 | `docs/` | Test reports, diagrams, screenshots |
@@ -75,7 +77,7 @@ The script prints accuracy per field and writes the failures to `docs/test_repor
 ## 7-day plan
 
 - [x] Day 1 – n8n setup, webhook → Google Sheet
-- [ ] Day 2 – LLM node with strict JSON output
+- [x] Day 2 – LLM node with strict JSON output
 - [ ] Day 3 – Routing (Slack / email / Sheet / drop)
 - [ ] Day 4 – Robustness: invalid JSON, empty input, prompt injection, retries, logging
 - [ ] Day 5 – Test set + runner + accuracy report
